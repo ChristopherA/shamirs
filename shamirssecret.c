@@ -264,7 +264,6 @@ int main(int argc, char* argv[]) {
 			ERROREXIT("Could not open %s for reading.\n", in_file)
 
 		uint8_t secret[MAX_LENGTH];
-		memset(secret, 0, MAX_LENGTH*sizeof(uint8_t));
 
 		size_t secret_length = fread(secret, 1, MAX_LENGTH*sizeof(uint8_t), secret_file);
 		if (secret_length == 0)
@@ -274,15 +273,15 @@ int main(int argc, char* argv[]) {
 		fclose(secret_file);
 		printf("Using secret of length %lu\n", secret_length);
 
-		uint8_t a[secret_length][k], D[n][secret_length];
+		uint8_t a[k], D[n][secret_length];
 
 		for (uint8_t i = 0; i < secret_length; i++) {
-			a[i][0] = secret[i];
+			a[0] = secret[i];
 
 			for (uint8_t j = 1; j < k; j++)
-				assert(fread(&a[i][j], sizeof(uint8_t), 1, random) == 1);
+				assert(fread(&a[j], sizeof(uint8_t), 1, random) == 1);
 			for (uint8_t j = 0; j < n; j++)
-				D[j][i] = calculateQ(a[i], k, j+1);
+				D[j][i] = calculateQ(a, k, j+1);
 		}
 
 		char out_file_name_buf[strlen(out_file_param) + 4];
@@ -311,6 +310,11 @@ int main(int argc, char* argv[]) {
 		for (uint8_t i = 0; i < secret_length; i++)
 			printf("%02x", secret[i]);
 		printf("\n");*/
+
+		// Clear sensitive data (No, GCC 4.7.2 is currently not optimizing this out)
+		memset(secret, 0, sizeof(uint8_t)*secret_length);
+		memset(a, 0, sizeof(uint8_t)*k);
+		memset(in_file, 0, strlen(in_file));
 
 		fclose(random);
 	} else {
@@ -349,6 +353,14 @@ int main(int argc, char* argv[]) {
 
 		for (uint8_t i = 0; i < k; i++)
 			fclose(files_fps[i]);
+
+		// Clear sensitive data (No, GCC 4.7.2 is currently not optimizing this out)
+		memset(secret, 0, sizeof(uint8_t)*i);
+		memset(q, 0, sizeof(uint8_t)*k);
+		memset(out_file_param, 0, strlen(out_file_param));
+		for (uint8_t i = 0; i < k; i++)
+			memset(files[i], 0, strlen(files[i]));
+		memset(x, 0, sizeof(uint8_t)*k);
 	}
 
 	return 0;
