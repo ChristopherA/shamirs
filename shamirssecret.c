@@ -275,13 +275,16 @@ int main(int argc, char* argv[]) {
 
 		uint8_t a[k], D[n][secret_length];
 
-		for (uint8_t i = 0; i < secret_length; i++) {
+		for (uint32_t i = 0; i < secret_length; i++) {
 			a[0] = secret[i];
 
 			for (uint8_t j = 1; j < k; j++)
 				assert(fread(&a[j], sizeof(uint8_t), 1, random) == 1);
 			for (uint8_t j = 0; j < n; j++)
 				D[j][i] = calculateQ(a, k, j+1);
+
+			if (i % 32 == 0 && i != 0)
+				printf("Finished processing %u bytes.\n", i);
 		}
 
 		char out_file_name_buf[strlen(out_file_param) + 4];
@@ -337,7 +340,7 @@ int main(int argc, char* argv[]) {
 
 		uint8_t secret[MAX_LENGTH];
 
-		uint8_t i = 0;
+		uint32_t i = 0;
 		while (fread(&q[0], sizeof(uint8_t), 1, files_fps[0]) == 1) {
 			for (uint8_t j = 1; j < k; j++) {
 				if (fread(&q[j], sizeof(uint8_t), 1, files_fps[j]) != 1)
