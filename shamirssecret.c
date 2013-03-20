@@ -125,7 +125,7 @@ static uint8_t field_mul_calc(uint8_t a, uint8_t b) {
 static uint8_t field_pow_calc(uint8_t a, uint8_t e) {
 	uint8_t ret = 1;
 	for (uint8_t i = 0; i < e; i++)
-		ret = field_mul(ret, a);
+		ret = field_mul_calc(ret, a);
 	return ret;
 }
 int main() {
@@ -134,7 +134,7 @@ int main() {
 		assert(field_mul_calc(i, field_invert(i)) == 1);
 
 	// Test multiplication with the logarithm tables
-	for (uint16_t i = 0; i < 2; i++) {
+	for (uint16_t i = 0; i < P; i++) {
 		for (uint16_t j = 0; j < P; j++)
 			assert(field_mul(i, j) == field_mul_calc(i, j));
 	}
@@ -241,7 +241,7 @@ int main(int argc, char* argv[]) {
 			ERROREXIT("getopt failed?\n")
 		}
 	if (!(split & 0x2))
-		ERROREXIT("Must specify either -c or -s\n")
+		ERROREXIT("Must specify one of -c, -s or -?\n")
 	split &= 0x1;
 
 	if (argc != optind)
