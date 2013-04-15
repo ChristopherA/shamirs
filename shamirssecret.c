@@ -102,6 +102,11 @@ static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) {
 	return ret;
 }
 static uint8_t field_pow(uint8_t a, uint8_t e) {
+#ifndef TEST
+	// Although this function works for a==0, its not trivially obvious why,
+	// and since we never call with a==0, we just assert a != 0 (except when testing)
+	assert(a != 0);
+#endif
 	return field_pow_ret(exp[(log[a] * e) % 255], a, e);
 }
 
