@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <stdbool.h>
 
 #define MAX_LENGTH 1024
 #define ERROREXIT(str...) {fprintf(stderr, str); exit(1);}
@@ -187,6 +188,71 @@ uint8_t calculateSecret(uint8_t x[], uint8_t q[], uint8_t k) {
 }
 
 
+void derive_missing_part(uint8_t total_shares, uint8_t shares_required, bool parts_have[], uint8_t* split_version, uint8_t split_index, uint8_t split_size) {
+	uint8_t (*D)[split_size] = (uint8_t (*)[split_size])split_version;
+	uint8_t x[shares_required], q[shares_required];
+
+	// Fill in x/q with the selected shares
+	uint16_t x_pos = 0;
+	for (uint8_t i = 0; i < P-1; i++) {
+		if (parts_have[i]) {
+			x[x_pos] = i+1;
+			q[x_pos++] = D[i][split_index];
+		}
+	}
+	assert(x_pos == shares_required - 1);
+
+	// Now loop through ALL x we didn't already set (despite not having that many
+	// shares, because more shares could be added arbitrarily, any x should not be
+	// able to rule out any possible secrets) and try each possible q, making sure
+	// that each q gives us a new possibility for the secret.
+	bool impossible_secrets[P];
+	memset(impossible_secrets, 0, sizeof(impossible_secrets));
+	for (uint16_t final_x = 1; final_x < P; final_x++) { 
+		bool x_already_used = false;
+		for (uint8_t j = 0; j < shares_required; j++) {
+			if (x[j] == final_x)
+				x_already_used = true;
+		}
+		if (x_already_used)
+			continue;
+
+		x[shares_required-1] = final_x;
+		bool possible_secrets[P];
+		memset(possible_secrets, 0, sizeof(possible_secrets));
+		for (uint16_t new_q = 0; new_q < P; new_q++) {
+			q[shares_required-1] = new_q;
+			possible_secrets[calculateSecret(x, q, shares_required)] = 1;
+		}
+
+		for (uint16_t i = 0; i < P; i++)
+			assert(possible_secrets[i]);
+	}
+
+	//TODO: Check that gcc isn't optimizing this one away
+	memset(q, 0, sizeof(q));
+}
+
+void check_possible_missing_part_derivations_intern(uint8_t total_shares, uint8_t shares_required, bool parts_have[], uint8_t parts_included, uint16_t progress, uint8_t* split_version, uint8_t split_index, uint8_t split_size) {
+	if (parts_included == shares_required-1)
+		return derive_missing_part(total_shares, shares_required, parts_have, split_version, split_index, split_size);
+
+	if (total_shares - progress < shares_required)
+		return;
+
+	check_possible_missing_part_derivations_intern(total_shares, shares_required, parts_have, parts_included, progress+1, split_version, split_index, split_size);
+	parts_have[progress] = 1;
+	check_possible_missing_part_derivations_intern(total_shares, shares_required, parts_have, parts_included+1, progress+1, split_version, split_index, split_size);
+	parts_have[progress] = 0;
+}
+
+void check_possible_missing_part_derivations(uint8_t total_shares, uint8_t shares_required, uint8_t* split_version, uint8_t split_index, uint8_t split_size) {
+	bool parts_have[P];
+	memset(parts_have, 0, sizeof(parts_have));
+	check_possible_missing_part_derivations_intern(total_shares, shares_required, parts_have, 0, 0, split_version, split_index, split_size);
+}
+
+
 
 int main(int argc, char* argv[]) {
 	assert(mlockall(MCL_CURRENT | MCL_FUTURE) == 0);
@@ -289,6 +355,9 @@ int main(int argc, char* argv[]) {
 				assert(fread(&a[j], sizeof(uint8_t), 1, random) == 1);
 			for (uint8_t j = 0; j < total_shares; j++)
 				D[j][i] = calculateQ(a, shares_required, j+1);
+
+			// Now, for sanity's sake, we ensure that no matter which piece we are missing, we can derive no information about the secret
+			check_possible_missing_part_derivations(total_shares, shares_required, &(D[0][0]), i, secret_length);
 
 			if (i % 32 == 0 && i != 0)
 				printf("Finished processing %u bytes.\n", i);
