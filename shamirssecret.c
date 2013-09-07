@@ -24,7 +24,7 @@
 #define CHECKSTATE(x) assert(x)
 #else
 #include <linux/bug.h>
-#define CHECKSTATE(x) BUG_ON(x)
+#define CHECKSTATE(x) BUG_ON(!(x))
 #endif
 
 #include "shamirssecret.h"
