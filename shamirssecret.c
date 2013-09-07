@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
 	assert(mlockall(MCL_CURRENT | MCL_FUTURE) == 0);
 
 	char split = 0;
-	uint8_t n = 0, k = 0;
+	uint8_t total_shares = 0, k = 0;
 	char* files[P]; uint8_t files_count = 0;
 	char *in_file = (void*)0, *out_file_param = (void*)0;
 
@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
 			if (t <= 0 || t >= P)
 				ERROREXIT("n must be > 0 and < %u\n", P)
 			else
-				n = t;
+				total_shares = t;
 			break;
 		}
 		case 'k': {
@@ -253,10 +253,10 @@ int main(int argc, char* argv[]) {
 		ERROREXIT("Invalid argument\n")
 
 	if (split) {
-		if (!n || !k)
+		if (!total_shares || !k)
 			ERROREXIT("n and k must be set.\n")
 
-		if (k > n)
+		if (k > total_shares)
 			ERROREXIT("k must be <= n\n")
 
 		if (files_count != 0 || !in_file || !out_file_param)
@@ -278,14 +278,14 @@ int main(int argc, char* argv[]) {
 		fclose(secret_file);
 		printf("Using secret of length %lu\n", secret_length);
 
-		uint8_t a[k], D[n][secret_length];
+		uint8_t a[k], D[total_shares][secret_length];
 
 		for (uint32_t i = 0; i < secret_length; i++) {
 			a[0] = secret[i];
 
 			for (uint8_t j = 1; j < k; j++)
 				assert(fread(&a[j], sizeof(uint8_t), 1, random) == 1);
-			for (uint8_t j = 0; j < n; j++)
+			for (uint8_t j = 0; j < total_shares; j++)
 				D[j][i] = calculateQ(a, k, j+1);
 
 			if (i % 32 == 0 && i != 0)
@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
 
 		char out_file_name_buf[strlen(out_file_param) + 4];
 		strcpy(out_file_name_buf, out_file_param);
-		for (uint8_t i = 0; i < n; i++) {
+		for (uint8_t i = 0; i < total_shares; i++) {
 			/*printf("%u-", i);
 			for (uint8_t j = 0; j < secret_length; j++)
 				printf("%02x", D[i][j]);
