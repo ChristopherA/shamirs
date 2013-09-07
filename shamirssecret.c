@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
 	assert(mlockall(MCL_CURRENT | MCL_FUTURE) == 0);
 
 	char split = 0;
-	uint8_t total_shares = 0, k = 0;
+	uint8_t total_shares = 0, shares_required = 0;
 	char* files[P]; uint8_t files_count = 0;
 	char *in_file = (void*)0, *out_file_param = (void*)0;
 
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
 			if (t <= 0 || t >= P)
 				ERROREXIT("n must be > 0 and < %u\n", P)
 			else
-				k = t;
+				shares_required = t;
 			break;
 		}
 		case 'i':
@@ -253,10 +253,10 @@ int main(int argc, char* argv[]) {
 		ERROREXIT("Invalid argument\n")
 
 	if (split) {
-		if (!total_shares || !k)
+		if (!total_shares || !shares_required)
 			ERROREXIT("n and k must be set.\n")
 
-		if (k > total_shares)
+		if (shares_required > total_shares)
 			ERROREXIT("k must be <= n\n")
 
 		if (files_count != 0 || !in_file || !out_file_param)
@@ -278,15 +278,15 @@ int main(int argc, char* argv[]) {
 		fclose(secret_file);
 		printf("Using secret of length %lu\n", secret_length);
 
-		uint8_t a[k], D[total_shares][secret_length];
+		uint8_t a[shares_required], D[total_shares][secret_length];
 
 		for (uint32_t i = 0; i < secret_length; i++) {
 			a[0] = secret[i];
 
-			for (uint8_t j = 1; j < k; j++)
+			for (uint8_t j = 1; j < shares_required; j++)
 				assert(fread(&a[j], sizeof(uint8_t), 1, random) == 1);
 			for (uint8_t j = 0; j < total_shares; j++)
-				D[j][i] = calculateQ(a, k, j+1);
+				D[j][i] = calculateQ(a, shares_required, j+1);
 
 			if (i % 32 == 0 && i != 0)
 				printf("Finished processing %u bytes.\n", i);
@@ -321,21 +321,21 @@ int main(int argc, char* argv[]) {
 
 		// Clear sensitive data (No, GCC 4.7.2 is currently not optimizing this out)
 		memset(secret, 0, sizeof(uint8_t)*secret_length);
-		memset(a, 0, sizeof(uint8_t)*k);
+		memset(a, 0, sizeof(uint8_t)*shares_required);
 		memset(in_file, 0, strlen(in_file));
 
 		fclose(random);
 	} else {
-		if (!k)
+		if (!shares_required)
 			ERROREXIT("k must be set.\n")
 
-		if (files_count != k || in_file || !out_file_param)
+		if (files_count != shares_required || in_file || !out_file_param)
 			ERROREXIT("Must not specify -i and must specify -o and exactly k -f <input file>s in combine mode.\n")
 
-		uint8_t x[k], q[k];
-		FILE* files_fps[k];
+		uint8_t x[shares_required], q[shares_required];
+		FILE* files_fps[shares_required];
 
-		for (uint8_t i = 0; i < k; i++) {
+		for (uint8_t i = 0; i < shares_required; i++) {
 			files_fps[i] = fopen(files[i], "r");
 			if (!files_fps[i])
 				ERROREXIT("Couldn't open file %s for reading.\n", files[i])
@@ -347,11 +347,11 @@ int main(int argc, char* argv[]) {
 
 		uint32_t i = 0;
 		while (fread(&q[0], sizeof(uint8_t), 1, files_fps[0]) == 1) {
-			for (uint8_t j = 1; j < k; j++) {
+			for (uint8_t j = 1; j < shares_required; j++) {
 				if (fread(&q[j], sizeof(uint8_t), 1, files_fps[j]) != 1)
 					ERROREXIT("Couldn't read next byte from %s\n", files[j])
 			}
-			secret[i++] = calculateSecret(x, q, k);
+			secret[i++] = calculateSecret(x, q, shares_required);
 		}
 		printf("Got secret of length %u\n", i);
 
@@ -359,16 +359,16 @@ int main(int argc, char* argv[]) {
 		fwrite(secret, sizeof(uint8_t), i, out_file);
 		fclose(out_file);
 
-		for (uint8_t i = 0; i < k; i++)
+		for (uint8_t i = 0; i < shares_required; i++)
 			fclose(files_fps[i]);
 
 		// Clear sensitive data (No, GCC 4.7.2 is currently not optimizing this out)
 		memset(secret, 0, sizeof(uint8_t)*i);
-		memset(q, 0, sizeof(uint8_t)*k);
+		memset(q, 0, sizeof(uint8_t)*shares_required);
 		memset(out_file_param, 0, strlen(out_file_param));
-		for (uint8_t i = 0; i < k; i++)
+		for (uint8_t i = 0; i < shares_required; i++)
 			memset(files[i], 0, strlen(files[i]));
-		memset(x, 0, sizeof(uint8_t)*k);
+		memset(x, 0, sizeof(uint8_t)*shares_required);
 	}
 
 	return 0;
