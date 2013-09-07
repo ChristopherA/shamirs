@@ -16,6 +16,7 @@
  */
 #define P 256
 
+#ifndef TEST
 static uint8_t field_add(uint8_t a, uint8_t b) {
 	return a ^ b;
 }
@@ -27,6 +28,7 @@ static uint8_t field_sub(uint8_t a, uint8_t b) {
 static uint8_t field_neg(uint8_t a) {
 	return field_sub(0, a);
 }
+#endif
 
 static const uint8_t exp[P] = {
 	0x01, 0x03, 0x05, 0x0f, 0x11, 0x33, 0x55, 0xff, 0x1a, 0x2e, 0x72, 0x96, 0xa1, 0xf8, 0x13, 0x35,
