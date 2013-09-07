@@ -1,5 +1,12 @@
 #include <stdint.h>
+
+#ifndef IN_KERNEL
 #include <assert.h>
+#define CHECKSTATE(x) assert(x)
+#else
+#include <linux/bug.h>
+#define CHECKSTATE(x) BUG_ON(x)
+#endif
 
 #include "shamirssecret.h"
 
@@ -21,6 +28,9 @@ static uint8_t field_neg(uint8_t a) {
 }
 #endif
 
+//TODO: Using static tables will very likely create side-channel attacks when measuring cache hits
+//      Because these are fairly small tables, we can probably get them loaded mostly/fully into
+//      cache before use to break such attacks.
 static const uint8_t exp[P] = {
 	0x01, 0x03, 0x05, 0x0f, 0x11, 0x33, 0x55, 0xff, 0x1a, 0x2e, 0x72, 0x96, 0xa1, 0xf8, 0x13, 0x35,
 	0x5f, 0xe1, 0x38, 0x48, 0xd8, 0x73, 0x95, 0xa4, 0xf7, 0x02, 0x06, 0x0a, 0x1e, 0x22, 0x66, 0xaa,
@@ -76,7 +86,7 @@ static uint8_t field_mul(uint8_t a, uint8_t b)  {
 }
 
 static uint8_t field_invert(uint8_t a) {
-	assert(a != 0);
+	CHECKSTATE(a != 0);
 	return exp[0xff - log[a]]; // log[1] == 0xff
 }
 
@@ -98,7 +108,7 @@ static uint8_t field_pow(uint8_t a, uint8_t e) {
 #ifndef TEST
 	// Although this function works for a==0, its not trivially obvious why,
 	// and since we never call with a==0, we just assert a != 0 (except when testing)
-	assert(a != 0);
+	CHECKSTATE(a != 0);
 #endif
 	return field_pow_ret(exp[(log[a] * e) % 255], a, e);
 }
@@ -129,18 +139,18 @@ static uint8_t field_pow_calc(uint8_t a, uint8_t e) {
 int main() {
 	// Test inversion with the logarithm tables
 	for (uint16_t i = 1; i < P; i++)
-		assert(field_mul_calc(i, field_invert(i)) == 1);
+		CHECKSTATE(field_mul_calc(i, field_invert(i)) == 1);
 
 	// Test multiplication with the logarithm tables
 	for (uint16_t i = 0; i < P; i++) {
 		for (uint16_t j = 0; j < P; j++)
-			assert(field_mul(i, j) == field_mul_calc(i, j));
+			CHECKSTATE(field_mul(i, j) == field_mul_calc(i, j));
 	}
 
 	// Test exponentiation with the logarithm tables
 	for (uint16_t i = 0; i < P; i++) {
 		for (uint16_t j = 0; j < P; j++)
-			assert(field_pow(i, j) == field_pow_calc(i, j));
+			CHECKSTATE(field_pow(i, j) == field_pow_calc(i, j));
 	}
 }
 #endif // defined(TEST)
@@ -156,7 +166,7 @@ int main() {
  * coefficients[0] == secret, the rest are random values
  */
 uint8_t calculateQ(uint8_t coefficients[], uint8_t shares_required, uint8_t x) {
-	assert(x != 0); // q(0) == secret, though so does a[0]
+	CHECKSTATE(x != 0); // q(0) == secret, though so does a[0]
 	uint8_t ret = coefficients[0];
 	for (uint8_t i = 1; i < shares_required; i++) {
 		ret = field_add(ret, field_mul(coefficients[i], field_pow(x, i)));
