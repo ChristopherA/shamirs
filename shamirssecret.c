@@ -187,9 +187,9 @@ int main() {
  * coefficients[0] == secret, the rest are random values
  */
 uint8_t calculateQ(uint8_t coefficients[], uint8_t shares_required, uint8_t x) {
+	uint8_t ret = coefficients[0], i;
 	CHECKSTATE(x != 0); // q(0) == secret, though so does a[0]
-	uint8_t ret = coefficients[0];
-	for (uint8_t i = 1; i < shares_required; i++) {
+	for (i = 1; i < shares_required; i++) {
 		ret = field_add(ret, field_mul(coefficients[i], field_pow(x, i)));
 	}
 	return ret;
@@ -201,10 +201,10 @@ uint8_t calculateQ(uint8_t coefficients[], uint8_t shares_required, uint8_t x) {
 uint8_t calculateSecret(uint8_t x[], uint8_t q[], uint8_t shares_required) {
 	// Calculate the x^0 term using a derivation of the forumula at
 	// http://en.wikipedia.org/wiki/Lagrange_polynomial#Example_2
-	uint8_t ret = 0;
-	for (uint8_t i = 0; i < shares_required; i++) {
+	uint8_t ret = 0, i, j;
+	for (i = 0; i < shares_required; i++) {
 		uint8_t temp = q[i];
-		for (uint8_t j = 0; j < shares_required; j++) {
+		for (j = 0; j < shares_required; j++) {
 			if (i == j)
 				continue;
 			temp = field_mul(temp, field_neg(x[j]));
