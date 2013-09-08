@@ -17,13 +17,17 @@
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  */
 
+#ifndef IN_KERNEL
 #include <stdint.h>
+#else
+#include <linux/types.h>
+#endif
 
 #define P 256
 
 /**
  * Calculates the Y coordinate that the point with the given X
- * coefficients[0] == secret, the rest are random values
+ * coefficients[0] == secret, the rest are secure random values
  */
 uint8_t calculateQ(uint8_t coefficients[], uint8_t shares_required, uint8_t x);
 
