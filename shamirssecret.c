@@ -27,6 +27,10 @@
 
 #include "shamirssecret.h"
 
+#ifndef noinline
+#define noinline __attribute__((noinline))
+#endif
+
 /*
  * Calculations across the finite field GF(2^8)
  */
@@ -85,7 +89,7 @@ static const uint8_t log[P] = {
 	0x4a, 0xed, 0xde, 0xc5, 0x31, 0xfe, 0x18, 0x0d, 0x63, 0x8c, 0x80, 0xc0, 0xf7, 0x70, 0x07};
 
 // We disable lots of optimizations that result in non-constant runtime (+/- branch delays)
-static uint8_t field_mul_ret(uint8_t calc, uint8_t a, uint8_t b) __attribute__((optimize("-O0"))) __attribute__((noinline));
+static uint8_t field_mul_ret(uint8_t calc, uint8_t a, uint8_t b) __attribute__((optimize("-O0"))) noinline;
 static uint8_t field_mul_ret(uint8_t calc, uint8_t a, uint8_t b) {
 	uint8_t ret, ret2;
 	if (a == 0)
@@ -108,7 +112,7 @@ static uint8_t field_invert(uint8_t a) {
 }
 
 // We disable lots of optimizations that result in non-constant runtime (+/- branch delays)
-static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) __attribute__((optimize("-O0"))) __attribute__((noinline));
+static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) __attribute__((optimize("-O0"))) noinline;
 static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) {
 	uint8_t ret, ret2;
 	if (a == 0)
