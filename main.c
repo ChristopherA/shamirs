@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
 
 		// TODO: The following loop may take a long time and eat lots of /dev/random if total_shares is high
 		for (uint32_t i = 0; i < total_shares; i++) {
-			int32_t j = 0;
+			int32_t j = -1;
 			do {
 				assert(fread(&x[i], sizeof(uint8_t), 1, random) == 1);
 				if (x[i] == 0)
@@ -209,7 +209,7 @@ int main(int argc, char* argv[]) {
 				for (j = 0; j < i; j++)
 					if (x[j] == x[i])
 						break;
-			} while (j < i); // Inner loop will get to j = i when x[j] != x[i] for all j
+			} while (j < (int32_t)i); // Inner loop will get to j = i when x[j] != x[i] for all j
 			if (i % 32 == 31)
 				printf("Finished picking X coordinates for %u shares\n", i+1);
 		}
