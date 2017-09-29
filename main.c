@@ -58,8 +58,6 @@ static void derive_missing_part(uint8_t total_shares, uint8_t shares_required, b
 	// shares, because more shares could be added arbitrarily, any x should not be
 	// able to rule out any possible secrets) and try each possible q, making sure
 	// that each q gives us a new possibility for the secret.
-	bool impossible_secrets[P];
-	memset(impossible_secrets, 0, sizeof(impossible_secrets));
 	for (uint16_t final_x = 1; final_x < P; final_x++) { 
 		bool x_already_used = false;
 		for (uint8_t j = 0; j < shares_required; j++) {

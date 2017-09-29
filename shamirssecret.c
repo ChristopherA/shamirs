@@ -38,7 +38,6 @@
  * Calculations across the finite field GF(2^8)
  */
 
-#ifndef TEST
 static uint8_t field_add(uint8_t a, uint8_t b) {
 	return a ^ b;
 }
@@ -50,7 +49,6 @@ static uint8_t field_sub(uint8_t a, uint8_t b) {
 static uint8_t field_neg(uint8_t a) {
 	return field_sub(0, a);
 }
-#endif
 
 //TODO: Using static tables will very likely create side-channel attacks when measuring cache hits
 //      Because these are fairly small tables, we can probably get them loaded mostly/fully into
@@ -114,27 +112,17 @@ static uint8_t field_invert(uint8_t a) {
 	return exp[0xff - log[a]]; // log[1] == 0xff
 }
 
-// We disable lots of optimizations that result in non-constant runtime (+/- branch delays)
-static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) __attribute__((optimize("-O0"))) noinline;
-static uint8_t field_pow_ret(uint8_t calc, uint8_t a, uint8_t e) {
-	uint8_t ret, ret2;
-	if (a == 0)
-		ret2 = 0;
-	else
-		ret2 = calc;
-	if (e == 0)
-		ret = 1;
-	else
-		ret = ret2;
-	return ret;
-}
 static uint8_t field_pow(uint8_t a, uint8_t e) {
+	uint8_t ret = exp[(log[a] * e) % 255];
 #ifndef TEST
-	// Although this function works for a==0, its not trivially obvious why,
-	// and since we never call with a==0, we just assert a != 0 (except when testing)
+	// We only work for a == 0 by branching (below), but since we
+	// never call with a==0, we just assert a != 0 (except when testing)
 	CHECKSTATE(a != 0);
+#else
+	if (a == 0 && e != 0)
+		ret = 0;
 #endif
-	return field_pow_ret(exp[(log[a] * e) % 255], a, e);
+	return ret;
 }
 
 #ifdef TEST
@@ -176,6 +164,17 @@ int main() {
 		for (uint16_t j = 0; j < P; j++)
 			CHECKSTATE(field_pow(i, j) == field_pow_calc(i, j));
 	}
+
+	// Test invertibility of add/negate/subtract
+	for (uint16_t i = 0; i < P; i++) {
+		CHECKSTATE(field_neg(field_neg(i)) == i);
+		// Test add/sub commutativity
+		for (uint16_t j = 0; j < P; j++) {
+			CHECKSTATE(field_add(i, j) == field_add(j, i));
+			CHECKSTATE(field_add(i, field_neg(j)) == field_sub(i, j));
+			CHECKSTATE(field_add(field_neg(j), i) == field_sub(i, j));
+		}
+	}
 }
 #endif // defined(TEST)
 
@@ -202,7 +201,7 @@ uint8_t calculateQ(uint8_t coefficients[], uint8_t shares_required, uint8_t x) {
  * Derives the secret given a set of shares_required points (x and q coordinates)
  */
 uint8_t calculateSecret(uint8_t x[], uint8_t q[], uint8_t shares_required) {
-	// Calculate the x^0 term using a derivation of the forumula at
+	// Calculate the x^0 term using a derivation of the formula at
 	// http://en.wikipedia.org/wiki/Lagrange_polynomial#Example_2
 	uint8_t ret = 0, i, j;
 	for (i = 0; i < shares_required; i++) {
